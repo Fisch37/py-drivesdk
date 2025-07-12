@@ -125,7 +125,7 @@ class TurnType(IntEnum):
 
 class TurnTrigger(IntEnum):
     NOW = 0
-    IMMEDIATE = 1
+    INTERSECTION = 1
 
 
 class Vehicle:
