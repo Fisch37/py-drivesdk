@@ -102,6 +102,17 @@ class Lights(IntEnum):
     FRONTLIGHTS = 2
     ENGINELIGHTS = 3
 
+class TurnType(IntEnum):
+    NONE = 0
+    LEFT = 1
+    RIGHT = 2
+    UTURN = 3
+    UTURN_JUMP = 4
+
+class TurnTrigger(IntEnum):
+    NOW = 0
+    IMMEDIATE = 1
+
 
 class Vehicle:
     """This class represents a supercar. With it you can control all functions of said supercar.
@@ -475,7 +486,7 @@ class Vehicle:
             _tag
         ))
 
-    async def turn(self, type: int = 3, trigger: int = 0):
+    async def turn(self, type: TurnType = TurnType.UTURN, trigger: TurnTrigger = TurnTrigger.NOW):
         # type and trigger don't work correcty
         """
         .. warning::
@@ -486,7 +497,7 @@ class Vehicle:
                 "Turning around with a map! This will cause a desync!",
                 UserWarning
             )
-        await self.__send_package(turn_180_pkg(type, trigger))
+        await self.__send_package(turn_180_pkg(int(type), int(trigger)))
     
     async def set_lights(self, light: int):
         """Set the lights of the vehicle in accordance with a bitmask
