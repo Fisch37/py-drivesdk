@@ -14,6 +14,7 @@ from ..misc.msgs import (
     disassemble_charger_info,
     disassemble_track_update,
     disassemble_track_change,
+    set_light_pkg,
     set_sdk_pkg,
     set_speed_pkg,
     change_lane_pkg,
@@ -494,9 +495,7 @@ class Vehicle:
             This function is deprecated due to not functioning properly.
             It will not execute.
         """
-        raise DeprecationWarning(
-            "This function is deprecated and does not work due to a bug in the vehicle computer."
-        )
+        await self.__send_package(set_light_pkg(light))
     
     async def set_light_pattern(self, r: int, g: int, b: int):
         """Set the engine light (the big one) at the top of the vehicle
