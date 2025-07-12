@@ -16,13 +16,15 @@ from ..misc.msgs import (
     disassemble_charger_info,
     disassemble_track_update,
     disassemble_track_change,
+    disassemble_version_resp,
     set_light_pkg,
     set_light_pattern_pkg,
     set_sdk_pkg,
     set_speed_pkg,
     change_lane_pkg,
     turn_180_pkg,
-    ping_pkg
+    ping_pkg,
+    version_request_pkg
 )
 from ..misc.track_pieces import TrackPiece, TrackPieceType
 from ..misc import const
@@ -157,7 +159,6 @@ class Vehicle:
         "_road_offset",
         "_speed",
         "on_track_piece_change",
-        "_track_piece_future",
         "_position",
         "_map",
         "_read_chara",
@@ -169,7 +170,10 @@ class Vehicle:
         "_battery_watchers",
         "_controller",
         "_ping_task",
-        "_battery"
+        "_battery",
+        # Futures for callback->coroutine logic
+        "_version_future"
+        "_track_piece_future",
     )
     
     def __init__(
@@ -196,13 +200,14 @@ class Vehicle:
         self._position: Optional[int] = None
 
         self.on_track_piece_change: Callable = lambda: None  # Set a dummy function by default
-        self._track_piece_future: asyncio.Future = asyncio.Future()
         self._track_piece_watchers: list[_Callback] = []
         self._pong_watchers: list[_Callback] = []
         self._delocal_watchers: list[_Callback] = []
         self._battery_watchers: list[_Callback] = []
         self._controller = controller
         self._battery: BatteryState = battery
+        self._version_future: asyncio.Future[int] = asyncio.Future()
+        self._track_piece_future: asyncio.Future = asyncio.Future()
 
     def _notify_handler(self, handler, data: bytearray) -> bool:
         """An internal handler function that gets called on a notify receive.
@@ -265,6 +270,9 @@ class Vehicle:
             self._battery = BatteryState.from_charger_info(payload)
             _call_all_soon(self._battery_watchers)
             pass
+        elif msg_type == const.VehicleMsg.VERSION_RESP:
+            self._version_future.set_result(disassemble_version_resp(payload))
+            self._version_future = asyncio.Future()
         else:
             return False
         return True
@@ -341,10 +349,7 @@ class Vehicle:
             A generic error occured whilst connection to the supercar
         """
         try:
-            connect_success = await self._client.connect()
-            if not connect_success:
-                # Handle a failed connect the same way as a BleakError
-                raise BleakError
+            await self._client.connect()
         # Translate a bunch of errors occuring on connection
         except BleakDBusError as e:
             raise errors.ConnectionDatabusError(
@@ -705,6 +710,11 @@ class Vehicle:
         """
         self._pong_watchers.append(func)
         return func
+
+    async def get_version(self) -> int:
+        """Get the vehicle firmware version"""
+        await self.__send_package(version_request_pkg())
+        return await self._version_future
 
     @property
     def is_connected(self) -> bool:

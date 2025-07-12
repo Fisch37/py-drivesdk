@@ -81,6 +81,9 @@ def ping_pkg():
         b""
     )
 
+def version_request_pkg():
+    return assemble_packet(const.ControllerMsg.VERSION_REQ, b"")
+
 
 def disassemble_track_update(
         payload: bytes
@@ -150,3 +153,6 @@ def disassemble_charger_info(
         payload: bytes
 ) -> tuple[bool, bool, bool, bool]:
     return struct.unpack_from('<????', payload)  # type: ignore
+
+def disassemble_version_resp(payload: bytes) -> int:
+    return struct.unpack_from("<H", payload)[0]
