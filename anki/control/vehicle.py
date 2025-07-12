@@ -8,6 +8,8 @@ from bleak.backends.device import BLEDevice
 import dataclasses
 from bleak.exc import BleakDBusError, BleakError
 
+from anki.control.lights import LightPattern
+
 from ..misc import msg_protocol
 
 from ..misc.msgs import (
@@ -15,6 +17,7 @@ from ..misc.msgs import (
     disassemble_track_update,
     disassemble_track_change,
     set_light_pkg,
+    set_light_pattern_pkg,
     set_sdk_pkg,
     set_speed_pkg,
     change_lane_pkg,
@@ -46,6 +49,15 @@ def interpret_local_name(name: str|None):
 
     return BatteryState.from_int(vehicleState), version, vehicleName
 
+def _set_lights_bits(low: int, high: int, bit: int, op: bool|None) -> tuple[int, int]:
+    # Updates the low and high nibbles at the bit position according to op
+    # Returns the low and high nibbles (in that order)
+    if op is not None:
+        low |= bit
+        if op:
+            high |= bit
+    return low, high
+        
 
 def _call_all_soon(funcs, *args):
     # Registers everything in funcs to be called soon with *args
@@ -96,11 +108,13 @@ class BatteryState:
         return cls(full, None, on_charger, charging)
 
 
-class Lights(IntEnum):
-    HEADLIGHTS = 0
-    BRAKELIGHTS = 1
-    FRONTLIGHTS = 2
-    ENGINELIGHTS = 3
+class Lights:
+    ENGINE = 0b0001
+    """Does not seem to work"""
+    BRAKELIGHTS = 0b0010
+    HEADLIGHTS = 0b0100
+    BRAKELIGHTS_FLICKER = 0b1000
+    """Brakelights have two bits for some reason"""
 
 class TurnType(IntEnum):
     NONE = 0
@@ -499,25 +513,47 @@ class Vehicle:
             )
         await self.__send_package(turn_180_pkg(int(type), int(trigger)))
     
-    async def set_lights(self, light: int):
-        """Set the lights of the vehicle in accordance with a bitmask
-
-        .. warning::
-            This function is deprecated due to not functioning properly.
-            It will not execute.
+    async def set_lights(self, *, 
+            engine: bool|None=None, headlights: bool|None=None,
+            brakelights: bool|None=None, brakelights_flicker: bool|None=None):
+        """
+        Change which lights are active on the vehicle. 
+        Any lights set to `None` (the default) will keep their previous state.
+        Enabling a light also resets its pattern.
+        
+        :param engine: :class:`bool|None`
+            The engine light (big RGB light at the top).
+            Does not work, probably a bug
+        :param headlights: :class:`bool|None`
+            Headlights. Color probably varies depending on the vehicle.
+        :param brakelights: :class:`bool|None`
+            Solid red brakelights.
+        :param brakelights_flicker: :class:`bool|None`
+            Flickering red brakelights. If set, overrides any setting on brakelights.
+            (e.g. `brakelights=True,brakelights_flicker=False` means no brakelights)
+        """
+        low = 0b0000
+        high = 0b0000
+        low, high = _set_lights_bits(low, high, Lights.ENGINE, engine)
+        low, high = _set_lights_bits(low, high, Lights.BRAKELIGHTS, brakelights)
+        low, high = _set_lights_bits(low, high, Lights.HEADLIGHTS, headlights)
+        low, high = _set_lights_bits(low, high, Lights.BRAKELIGHTS_FLICKER, brakelights_flicker)
+        await self.set_lights_raw((high << 4) | low)
+    
+    async def set_lights_raw(self, light: int):
+        """
+        Set the lights of the vehicle in accordance with a bitmask.
+        There's normally no need to use this method. Use :func:`Vehicle.set_lights` instead.
         """
         await self.__send_package(set_light_pkg(light))
     
-    async def set_light_pattern(self, r: int, g: int, b: int):
-        """Set the engine light (the big one) at the top of the vehicle
-
-        .. warning::
-            This function is deprecated due to a hardware bug causing it not to function.
-            It will not execute.
+    async def set_light_pattern(self, patterns: list[LightPattern]):
+        """Detailed control over the vehicle lights, including animations.
+        
+        :param patterns: :class:`list[LightPattern]`
+            A list of patterns to execute. May at most be of length three.
         """
-        raise DeprecationWarning(
-            "This function is deprecated and does not work due to a bug in the vehicle computer."
-        )
+        await self.__send_package(set_light_pattern_pkg(patterns))
     
     def get_lane(self, mode: type[_Lane]) -> Optional[_Lane]:
         """Get the current lane given a specific lane type
