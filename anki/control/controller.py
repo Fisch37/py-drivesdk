@@ -13,19 +13,15 @@ from typing import Optional
 from collections.abc import Collection
 
 
-def _is_anki(device: BLEDevice, advertisement: AdvertisementData):
+def _is_anki(device: BLEDevice, advertisement: AdvertisementData,*, allow_charging: bool=False):
     try:
         state, version, name = interpret_local_name(advertisement.local_name)
     except ValueError:
         # If we can't interprete the name, it can't be a vehicle
         return False
         pass
-    if state.on_charger:
-        # We don't want to connect to a charging vehicle, 
-        # so we'll just pretend it's not a vehicle
-        return False
 
-    return True
+    return allow_charging or not state.on_charger
 
 
 class Controller:
@@ -52,12 +48,14 @@ class Controller:
     async def _get_vehicle(
             self,
             vehicle_id: Optional[int]=None,
-            address: str|None=None
+            address: str|None=None,
+            *,
+            allow_charging: bool=False
     ) -> Vehicle:
         # Finds a Supercar and creates a Vehicle instance around it
         device = await self._scanner.find_device_by_filter(
             lambda device, advertisement:
-                _is_anki(device, advertisement)
+                _is_anki(device, advertisement, allow_charging=allow_charging)
                 and (address is None or device.address == address),
             timeout=self.timeout
         )  # type: ignore
@@ -92,7 +90,9 @@ class Controller:
 
     async def connect_one(
             self,
-            vehicle_id: Optional[int]=None
+            vehicle_id: Optional[int]=None,
+            *,
+            allow_charging: bool=False
     ) -> Vehicle:
         """Connect to one non-charging Supercar and return the Vehicle instance
 
@@ -124,7 +124,7 @@ class Controller:
             A vehicle with the specified id already exists.
             This will only be raised when using a custom id.
         """
-        vehicle = await self._get_vehicle(vehicle_id)
+        vehicle = await self._get_vehicle(vehicle_id, allow_charging=allow_charging)
         vehicle._map = self.map
         # If there is no map it sets None which is the default for Vehicle._map anyway
         await vehicle.connect()
@@ -134,7 +134,9 @@ class Controller:
     async def connect_specific(
             self,
             address: str,
-            vehicle_id: Optional[int]=None
+            vehicle_id: Optional[int]=None,
+            *,
+            allow_charging: bool=False
     ) -> Vehicle:
         """Connect to a supercar with a specified MAC address
         
@@ -166,7 +168,7 @@ class Controller:
             A vehicle with the specified id already exists.
             This will only be raised when using a custom id.
         """
-        vehicle = await self._get_vehicle(vehicle_id, address)
+        vehicle = await self._get_vehicle(vehicle_id, address, allow_charging=allow_charging)
         await vehicle.connect()
         return vehicle
         pass
@@ -174,7 +176,9 @@ class Controller:
     async def connect_many(
             self,
             amount: int,
-            vehicle_ids: Collection[int|None]|None=None
+            vehicle_ids: Collection[int|None]|None=None,
+            *,
+            allow_charging: bool=False
     ) -> tuple[Vehicle, ...]:
         """Connect to <amount> non-charging Supercars
         
@@ -218,7 +222,7 @@ class Controller:
             )
 
         return tuple([
-            await self.connect_one(vehicle_id)
+            await self.connect_one(vehicle_id, allow_charging=allow_charging)
             for vehicle_id in vehicle_ids]
         )
         # Done in series because the documentation said that would be more stable
