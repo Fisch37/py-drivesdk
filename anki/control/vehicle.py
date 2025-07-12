@@ -385,7 +385,7 @@ class Vehicle:
             set_sdk_pkg(True, 0x1)
         )
         # NOTE: If someone knows what the flags mean, please contact us
-        await self._client.start_notify(read, self._notify_handler)
+        await self._client.start_notify(read, lambda *args: None and self._notify_handler(*args))
 
         self._read_chara = read
         self._write_chara = write
