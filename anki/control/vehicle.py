@@ -204,8 +204,10 @@ class Vehicle:
         self._controller = controller
         self._battery: BatteryState = battery
 
-    def _notify_handler(self, handler, data: bytearray):
-        """An internal handler function that gets called on a notify receive"""
+    def _notify_handler(self, handler, data: bytearray) -> bool:
+        """An internal handler function that gets called on a notify receive.
+        Returns True if the message was processed, or False if not.
+        """
         msg_type, payload = msg_protocol.disassemble_packet(data)
         if msg_type == const.VehicleMsg.TRACK_PIECE_UPDATE:
             # This gets called when part-way along a track piece (sometimes)
@@ -224,7 +226,7 @@ class Vehicle:
                     If you are running a scan, this will break it. Received: {piece}",
                     errors.TrackPieceDecodeWarning
                 )
-                return
+                return True
 
             self._current_track_piece = piece_obj
 
@@ -263,7 +265,9 @@ class Vehicle:
             self._battery = BatteryState.from_charger_info(payload)
             _call_all_soon(self._battery_watchers)
             pass
-        pass
+        else:
+            return False
+        return True
 
     async def _auto_ping(self):
         # Automatically pings the supercars
