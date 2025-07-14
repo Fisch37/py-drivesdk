@@ -39,6 +39,9 @@ if TYPE_CHECKING:
 _Callback = Callable[[], None]
 
 
+def void(o: object) -> None:
+    return None
+
 def interpret_local_name(name: str|None):
     # Get the state of the vehicle from the local name
     if name is None or len(name) < 1:  # Fix some issues that might occur
@@ -365,8 +368,8 @@ class Vehicle:
             write,
             set_sdk_pkg(True, 0x1)
         )
-        # NOTE: If someone knows what the flags mean, please contact us
-        await self._client.start_notify(read, lambda *args: None and self._notify_handler(*args))
+                                                            # Bloody type checker
+        await self._client.start_notify(read, lambda *args: void(self._notify_handler(*args)))
 
         self._read_chara = read
         self._write_chara = write
