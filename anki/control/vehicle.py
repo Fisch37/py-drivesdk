@@ -174,7 +174,6 @@ class Vehicle:
         self._id: int = id
         self._current_track_piece: TrackPiece|None = None
         """Do not use! This can only show the last position for... reasons"""
-        self._is_connected = False
         self._road_offset: float|None = None
         self._speed: int = 0
         self._map: Optional[list[TrackPiece]] = None
@@ -376,7 +375,6 @@ class Vehicle:
         self._read_chara = read
         self._write_chara = write
 
-        self._is_connected = True
         self._ping_task = asyncio.create_task(self._auto_ping())
         pass
 
@@ -401,19 +399,19 @@ class Vehicle:
             The attempt to disconnect from the supercar failed for an unspecified reason
         """
         try:
-            self._is_connected = not await self._client.disconnect()
+            await self._client.disconnect()
         except asyncio.TimeoutError as e:
             raise errors.DisconnectTimedoutError(
                 "The attempt to disconnect from the vehicle timed out."
             ) from e
-        if self._is_connected:
+        if self.is_connected:
             raise errors.DisconnectFailedError("The attempt to disconnect the vehicle failed.")
         
-        if not self._is_connected and self._controller is not None:
+        if not self.is_connected and self._controller is not None:
             self._controller.vehicles.remove(self)
             self._ping_task.cancel("Vehicle disconnected")
 
-        return self._is_connected
+        return self.is_connected
 
     async def set_speed(self, speed: int, acceleration: int = 500):
         """Set the speed of the Supercar in mm/s
@@ -723,7 +721,7 @@ class Vehicle:
         """
         `True` if the vehicle is currently connected
         """
-        return self._is_connected
+        return self._client.is_connected
 
     @property
     def current_track_piece(self) -> TrackPiece|None:
