@@ -42,7 +42,11 @@ class ControllerMsg:
     SET_SPEED = 0x24
     CHANGE_LANE = 0x25
     CANCEL_LANE_CHANGE = 0x26
+    SET_TRACK_CENTER = 0x2c
+    
     TURN_180 = 0x32
+
+    STOP_ON_NEXT_TRANSITION = 0x4a
 
     SET_SDK = 0x90
     pass

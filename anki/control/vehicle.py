@@ -22,6 +22,8 @@ from ..misc.msgs import (
     set_sdk_pkg,
     set_speed_pkg,
     change_lane_pkg,
+    set_track_center_pkg,
+    stop_on_next_transition_pkg,
     turn_180_pkg,
     ping_pkg,
     version_request_pkg
@@ -430,6 +432,22 @@ class Vehicle:
         """Stops the Supercar"""
         await self.set_speed(0, 600)
     
+    async def stop_on_next_transition(self):
+        """Stops the supercar on the next track piece transition.
+        This is a vehicle internal command and thus will complete before the vehicle actually stops.
+        This operation cannot be cancelled.
+        """
+        await self._send_package(stop_on_next_transition_pkg())
+    
+    async def calibrate_road_offset(self, offset: float):
+        """Calibrate the road offset.
+        
+        :param offset: :class:`float`
+            The current offset the vehicle has from the center.
+            This value will be assumed to be true and will be the reference value for the road offset as well as lanes.
+        """
+        await self._send_package(set_track_center_pkg(offset))
+
     async def change_lane(
             self,
             lane: BaseLane,

@@ -56,6 +56,17 @@ def change_lane_pkg(
     )
     pass
 
+def set_track_center_pkg(
+        offset: float,
+):
+    return assemble_packet(
+        const.ControllerMsg.SET_TRACK_CENTER,
+        struct.pack(
+            "<f",
+            offset
+        )
+    )
+
 
 def set_light_pkg(light: int):
     return assemble_packet(
@@ -82,6 +93,9 @@ def ping_pkg():
 
 def version_request_pkg():
     return assemble_packet(const.ControllerMsg.VERSION_REQ, b"")
+
+def stop_on_next_transition_pkg():
+    return assemble_packet(const.ControllerMsg.STOP_ON_NEXT_TRANSITION, b"")
 
 
 def disassemble_track_update(
