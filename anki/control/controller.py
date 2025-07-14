@@ -45,13 +45,14 @@ class Controller:
         self.map: Optional[list[TrackPiece]] = None
         pass
 
-    async def _get_vehicle(
+    async def _get_vehicle[T: Vehicle](
             self,
             vehicle_id: Optional[int]=None,
             address: str|None=None,
             *,
-            allow_charging: bool=False
-    ) -> Vehicle:
+            allow_charging: bool=False,
+            vehicle_type: type[T] = Vehicle
+    ) -> T:
         # Finds a Supercar and creates a Vehicle instance around it
         device = await self._scanner.find_device_by_filter(
             lambda device, advertisement:
@@ -77,7 +78,7 @@ class Controller:
         elif vehicle_id in vehicle_ids:
             raise RuntimeError(f"Duplicate id for vehicle. Id {vehicle_id} already in use.")
 
-        vehicle = Vehicle(
+        vehicle = vehicle_type(
             vehicle_id,
             device,
             client,
@@ -88,12 +89,13 @@ class Controller:
         return vehicle
         pass
 
-    async def connect_one(
+    async def connect_one[T: Vehicle](
             self,
             vehicle_id: Optional[int]=None,
             *,
-            allow_charging: bool=False
-    ) -> Vehicle:
+            allow_charging: bool=False,
+            vehicle_type: type[T]=Vehicle
+    ) -> T:
         """Connect to one non-charging Supercar and return the Vehicle instance
 
         :param vehicle_id: :class:`Optional[int]`
@@ -124,20 +126,21 @@ class Controller:
             A vehicle with the specified id already exists.
             This will only be raised when using a custom id.
         """
-        vehicle = await self._get_vehicle(vehicle_id, allow_charging=allow_charging)
+        vehicle = await self._get_vehicle(vehicle_id, allow_charging=allow_charging, vehicle_type=vehicle_type)
         vehicle._map = self.map
         # If there is no map it sets None which is the default for Vehicle._map anyway
         await vehicle.connect()
         return vehicle
         pass
 
-    async def connect_specific(
+    async def connect_specific[T: Vehicle](
             self,
             address: str,
             vehicle_id: Optional[int]=None,
             *,
-            allow_charging: bool=False
-    ) -> Vehicle:
+            allow_charging: bool=False,
+            vehicle_type: type[T]=Vehicle
+    ) -> T:
         """Connect to a supercar with a specified MAC address
         
         :param address: :class:`str`
@@ -168,18 +171,19 @@ class Controller:
             A vehicle with the specified id already exists.
             This will only be raised when using a custom id.
         """
-        vehicle = await self._get_vehicle(vehicle_id, address, allow_charging=allow_charging)
+        vehicle = await self._get_vehicle(vehicle_id, address, allow_charging=allow_charging, vehicle_type=vehicle_type)
         await vehicle.connect()
         return vehicle
         pass
     
-    async def connect_many(
+    async def connect_many[T: Vehicle](
             self,
             amount: int,
             vehicle_ids: Collection[int|None]|None=None,
             *,
-            allow_charging: bool=False
-    ) -> tuple[Vehicle, ...]:
+            allow_charging: bool=False,
+            vehicle_type: type[T]=Vehicle
+    ) -> tuple[T, ...]:
         """Connect to <amount> non-charging Supercars
         
         :param amount: :class:`int`
@@ -222,9 +226,9 @@ class Controller:
             )
 
         return tuple([
-            await self.connect_one(vehicle_id, allow_charging=allow_charging)
-            for vehicle_id in vehicle_ids]
-        )
+            await self.connect_one(vehicle_id, allow_charging=allow_charging, vehicle_type=vehicle_type)
+            for vehicle_id in vehicle_ids
+        ])
         # Done in series because the documentation said that would be more stable
         pass
 
