@@ -188,6 +188,7 @@ class Vehicle:
         self._battery: BatteryState = battery
         self._version_future: asyncio.Future[int] = asyncio.Future()
         self._track_piece_future: asyncio.Future = asyncio.Future()
+        self._pong_future: asyncio.Future = asyncio.Future()
 
     def _notify_handler(self, handler, data: bytearray) -> bool:
         """An internal handler function that gets called on a notify receive.
@@ -246,7 +247,8 @@ class Vehicle:
             _call_all_soon(self._track_piece_watchers)
             pass
         elif msg_type == const.VehicleMsg.PONG:
-            _call_all_soon(self._pong_watchers)
+            self._pong_future.set_result(None)
+            self._pong_future = asyncio.Future()
         elif msg_type == const.VehicleMsg.DELOCALIZED:
             _call_all_soon(self._delocal_watchers)
             pass
@@ -568,6 +570,16 @@ class Vehicle:
 
         await self.stop()
     
+    async def ping(self):
+        """
+        Send a ping to the vehicle and wait for its response.
+        Due to connectivity issues this function may never finish.
+        Use `asyncio.wait_for` to create a timeout.
+        """
+        future = self._pong_future
+        await self._send_package(ping_pkg())
+        await future
+    
     def track_piece_change(self, func: _Callback):
         """
         A decorator marking a function to be executed when the supercar
@@ -652,27 +664,6 @@ class Vehicle:
     def remove_battery_watcher(self, func: _Callback):
         # TODO: Add code comments
         self._battery_watchers.remove(func)
-
-    async def ping(self):
-        """
-        Send a ping to the vehicle
-        """
-        await self._send_package(ping_pkg())
-
-    def pong(self, func):
-        """
-        A decorator marking an function to be executed when the supercar responds to a ping
-
-        :param func: :class:`function`
-            The function to mark as a listener
-        
-        Returns
-        -------
-        :class:`function`
-            The function being passed in
-        """
-        self._pong_watchers.append(func)
-        return func
 
     async def get_version(self) -> int:
         """Get the vehicle firmware version"""
