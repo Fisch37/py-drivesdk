@@ -15,7 +15,6 @@ from ..misc import msg_protocol
 from ..misc.msgs import (
     disassemble_charger_info,
     disassemble_track_update,
-    disassemble_track_change,
     disassemble_version_resp,
     set_light_pkg,
     set_light_pattern_pkg,
@@ -151,30 +150,6 @@ class Vehicle:
         "timeout": 10,
         "max_timeouts": 2
     }
-
-    __slots__ = (
-        "_client",
-        "_current_track_piece",
-        "_is_connected",
-        "_road_offset",
-        "_speed",
-        "on_track_piece_change",
-        "_position",
-        "_map",
-        "_read_chara",
-        "_write_chara",
-        "_id",
-        "_track_piece_watchers",
-        "_pong_watchers",
-        "_delocal_watchers",
-        "_battery_watchers",
-        "_controller",
-        "_ping_task",
-        "_battery",
-        # Futures for callback->coroutine logic
-        "_version_future"
-        "_track_piece_future",
-    )
     
     def __init__(
             self,
@@ -242,8 +217,6 @@ class Vehicle:
             ):
                 self._position = 0
             
-            uphill_count, downhill_count = disassemble_track_change(payload)[8:10]
-            """TODO: Find out what to do with these"""
             if self._position is not None:
                 # If vehicle is aligned
                 # This may happen during scan or because of a flying realign
@@ -311,7 +284,7 @@ class Vehicle:
                 warn("The vehicle did not sufficiently respond to pings. Disconnecting...")
                 await self.disconnect()
 
-    async def __send_package(self, payload: bytes):
+    async def _send_package(self, payload: bytes):
         """Send a payload to the supercar"""
         if self._write_chara is None:
             raise RuntimeError("A command was sent to a vehicle that has not been connected.")
@@ -437,7 +410,7 @@ class Vehicle:
         :param acceleration: :class:`Optional[int]`
             The acceleration in mm/s²
         """
-        await self.__send_package(set_speed_pkg(speed, acceleration))
+        await self._send_package(set_speed_pkg(speed, acceleration))
         # Update the internal speed as well
         # (this is technically an overestimate, but the error is marginal)
         self._speed = speed
@@ -501,7 +474,7 @@ class Vehicle:
             Due to a hardware limitation vehicles won't reliably perform
             lane changes under 300mm/s speed.
         """
-        await self.__send_package(change_lane_pkg(
+        await self._send_package(change_lane_pkg(
             roadCenterOffset,
             horizontalSpeed,
             horizontalAcceleration,
@@ -520,7 +493,7 @@ class Vehicle:
                 "Turning around with a map! This will cause a desync!",
                 UserWarning
             )
-        await self.__send_package(turn_180_pkg(int(type), int(trigger)))
+        await self._send_package(turn_180_pkg(int(type), int(trigger)))
     
     async def set_lights(self, *, 
             engine: bool|None=None, headlights: bool|None=None,
@@ -554,7 +527,7 @@ class Vehicle:
         Set the lights of the vehicle in accordance with a bitmask.
         There's normally no need to use this method. Use :func:`Vehicle.set_lights` instead.
         """
-        await self.__send_package(set_light_pkg(light))
+        await self._send_package(set_light_pkg(light))
     
     async def set_light_pattern(self, patterns: list[BasePattern]):
         """Detailed control over the vehicle lights, including animations.
@@ -562,7 +535,7 @@ class Vehicle:
         :param patterns: :class:`list[BasePattern]`
             A list of patterns to execute. May at most be of length three.
         """
-        await self.__send_package(set_light_pattern_pkg(patterns))
+        await self._send_package(set_light_pattern_pkg(patterns))
     
     def get_lane(self, mode: type[_Lane]) -> Optional[_Lane]:
         """Get the current lane given a specific lane type
@@ -694,7 +667,7 @@ class Vehicle:
         """
         Send a ping to the vehicle
         """
-        await self.__send_package(ping_pkg())
+        await self._send_package(ping_pkg())
 
     def pong(self, func):
         """
@@ -713,7 +686,7 @@ class Vehicle:
 
     async def get_version(self) -> int:
         """Get the vehicle firmware version"""
-        await self.__send_package(version_request_pkg())
+        await self._send_package(version_request_pkg())
         return await self._version_future
 
     @property

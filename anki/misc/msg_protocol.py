@@ -15,16 +15,6 @@ def assemble_packet(
             f"Could not cast msgType to bytes. \
             Should be either bytes or bytearray, was {type(msgType)}"
         ) from e
-    if not (
-        msgType_bytes[0] in const.ControllerMsg.__dict__.values()
-        or msgType_bytes[0] in const.VehicleMsg.__dict__.values()
-    ):
-        # Only allow for msgTypes specified in const.ControllerMsg or const.VehicleMsg
-        raise ValueError(
-            f"msgType has to be a type specified in const.ControllerMsg or \
-            const.VehicleMsg (latter is discouraged). You entered {msgType_bytes!r}"
-        )
-        pass
 
     try:
         if isinstance(payload, str):
