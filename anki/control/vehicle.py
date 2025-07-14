@@ -8,7 +8,7 @@ from bleak.backends.device import BLEDevice
 import dataclasses
 from bleak.exc import BleakDBusError, BleakError
 
-from anki.control.lights import LightPattern
+from anki.control.lights import BasePattern
 
 from ..misc import msg_protocol
 
@@ -556,10 +556,10 @@ class Vehicle:
         """
         await self.__send_package(set_light_pkg(light))
     
-    async def set_light_pattern(self, patterns: list[LightPattern]):
+    async def set_light_pattern(self, patterns: list[BasePattern]):
         """Detailed control over the vehicle lights, including animations.
         
-        :param patterns: :class:`list[LightPattern]`
+        :param patterns: :class:`list[BasePattern]`
             A list of patterns to execute. May at most be of length three.
         """
         await self.__send_package(set_light_pattern_pkg(patterns))

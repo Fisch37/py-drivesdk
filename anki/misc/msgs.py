@@ -1,4 +1,4 @@
-from anki.control.lights import LightPattern
+from anki.control.lights import BasePattern
 from .msg_protocol import assemble_packet
 from . import const
 import struct
@@ -65,8 +65,7 @@ def set_light_pkg(light: int):
     pass
 
 MAX_LIGHT_PATTERNS = 3
-def set_light_pattern_pkg(patterns: list[LightPattern]):
-    channels = len(patterns)
+def set_light_pattern_pkg(patterns: list[BasePattern]):
     if len(patterns) > MAX_LIGHT_PATTERNS:
         raise ValueError(f"set_light_pattern can accept at most {MAX_LIGHT_PATTERNS} patterns, got {len(patterns)}")
     return assemble_packet(
