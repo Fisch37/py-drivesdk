@@ -33,6 +33,7 @@ SET_SDK: uint8_t enable_disable, uint8_t flags
 
 class ControllerMsg:
     DISCONNECT = 0x0d
+    VOLTAGE_REQ = 0x1a
     PING = 0x16
     VERSION_REQ = 0x18
     
@@ -53,6 +54,7 @@ class ControllerMsg:
 
 
 class VehicleMsg:
+    VOLTAGE_RESP = 0x1b
     PONG = 0x17
     VERSION_RESP = 0x19
     # Notify characteristic

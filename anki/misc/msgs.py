@@ -94,6 +94,9 @@ def ping_pkg():
 def version_request_pkg():
     return assemble_packet(ControllerMsg.VERSION_REQ, b"")
 
+def voltage_request_pkg():
+    return assemble_packet(ControllerMsg.VOLTAGE_REQ, b"")
+
 def stop_on_next_transition_pkg():
     return assemble_packet(ControllerMsg.STOP_ON_NEXT_TRANSITION, b"")
 
@@ -168,4 +171,7 @@ def disassemble_charger_info(
     return struct.unpack_from('<????', payload)  # type: ignore
 
 def disassemble_version_resp(payload: bytes) -> int:
+    return struct.unpack_from("<H", payload)[0]
+
+def disassemble_voltage_resp(payload: bytes) -> int:
     return struct.unpack_from("<H", payload)[0]

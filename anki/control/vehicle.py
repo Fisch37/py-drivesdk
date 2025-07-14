@@ -14,6 +14,8 @@ from anki.control.lights import BasePattern
 from ..misc import msg_protocol
 
 from ..misc.msgs import (
+    disassemble_voltage_resp,
+    voltage_request_pkg,
     disassemble_charger_info,
     disassemble_track_update,
     disassemble_version_resp,
@@ -194,6 +196,7 @@ class Vehicle:
         self._version_future: asyncio.Future[int] = asyncio.Future()
         self._track_piece_future: asyncio.Future = asyncio.Future()
         self._pong_future: asyncio.Future = asyncio.Future()
+        self._voltage_future: asyncio.Future[int] = asyncio.Future()
 
     def _notify_handler(self, handler, data: bytearray) -> bool:
         """An internal handler function that gets called on a notify receive.
@@ -264,6 +267,9 @@ class Vehicle:
         elif msg_type == const.VehicleMsg.VERSION_RESP:
             self._version_future.set_result(disassemble_version_resp(payload))
             self._version_future = asyncio.Future()
+        elif msg_type == const.VehicleMsg.VOLTAGE_RESP:
+            self._voltage_future.set_result(disassemble_voltage_resp(payload))
+            self._voltage_future = asyncio.Future()
         else:
             logging.info("message of type %x remained unhandled", msg_type)
             return False
@@ -584,6 +590,13 @@ class Vehicle:
         future = self._pong_future
         await self._send_package(ping_pkg())
         await asyncio.shield(future)
+    
+    async def get_battery_voltage(self):
+        # TODO: Find out what unit the voltage is. This is a LiPo battery so there isn't much to find out sadly.
+        # I have a suspicion it's Voltage*100
+        future = self._voltage_future
+        await self._send_package(voltage_request_pkg())
+        return await asyncio.shield(future)
     
     def track_piece_change(self, func: _Callback):
         """
