@@ -262,40 +262,6 @@ class Vehicle:
             return False
         return True
 
-    async def _auto_ping(self):
-        # Automatically pings the supercars
-        # and disconnects when they don't respond.
-        # TODO: Remove debug prints
-        # TODO: Replace future with event
-        pong_reply_future = asyncio.Future()
-        
-        @self.pong
-        def pong_watch():
-            nonlocal pong_reply_future
-            pong_reply_future.set_result()
-            pong_reply_future = asyncio.Future()
-            print("Pong reply!")
-            pass
-        
-        config = type(self).AUTOMATIC_PING_CONTROL
-        timeouts = 0
-        while self.is_connected:
-            await asyncio.sleep(config["interval"])
-            await self.ping()
-            print("Ping!")
-            try:
-                await asyncio.wait_for(pong_reply_future, config["timeout"])
-            except asyncio.TimeoutError:
-                timeouts += 1
-                print("Ping failed")
-            else:
-                timeouts = 0
-                print("Ping succeeded")
-
-            if timeouts > config["max_timeouts"]:
-                warn("The vehicle did not sufficiently respond to pings. Disconnecting...")
-                await self.disconnect()
-
     async def _send_package(self, payload: bytes):
         """Send a payload to the supercar"""
         if self._write_chara is None:
@@ -374,8 +340,6 @@ class Vehicle:
 
         self._read_chara = read
         self._write_chara = write
-
-        self._ping_task = asyncio.create_task(self._auto_ping())
         pass
 
     async def disconnect(self) -> bool:
@@ -409,7 +373,6 @@ class Vehicle:
         
         if not self.is_connected and self._controller is not None:
             self._controller.vehicles.remove(self)
-            self._ping_task.cancel("Vehicle disconnected")
 
         return self.is_connected
 
