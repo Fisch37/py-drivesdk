@@ -82,8 +82,7 @@ class Controller:
             vehicle_id,
             device,
             client,
-            self,
-            battery=interpret_local_name(device.name)[0]
+            self
         )
         self.vehicles.add(vehicle)
         return vehicle

@@ -54,7 +54,7 @@ def interpret_local_name(name: str|None):
     version = int.from_bytes(nameBytes[1:3], "little", signed=False)
     vehicleName = nameBytes[8:].decode("utf-8")
 
-    return BatteryState.from_int(vehicleState), version, vehicleName
+    return _BatteryState.from_int(vehicleState), version, vehicleName
 
 def _set_lights_bits(low: int, high: int, bit: int, op: bool|None) -> tuple[int, int]:
     # Updates the low and high nibbles at the bit position according to op
@@ -71,14 +71,12 @@ def _call_all_soon(funcs, *args):
     for f in funcs:
         asyncio.get_running_loop().call_soon(f, *args)
 
-
 @dataclasses.dataclass(frozen=True)
-class BatteryState:
-    """Represents the state of a supercar"""
+class _BatteryState:
+    """The battery state shown in vehicle advertisements"""
     full_battery: bool
-    low_battery: bool|None
+    low_battery: bool
     on_charger: bool
-    charging: bool|None = None
 
     @classmethod
     def from_int(cls, state: int):
@@ -98,8 +96,17 @@ class BatteryState:
 
         return cls(full, low, on_charger)
 
-    @classmethod
-    def from_charger_info(cls, payload: bytes):
+
+@dataclasses.dataclass(frozen=True)
+class VehicleState:
+    """Represents the state of a supercar"""
+    full_battery: bool
+    low_battery: bool
+    on_charger: bool
+    on_track: bool
+
+    @staticmethod
+    def from_charger_info(payload: bytes):
         """
         Constructs a :class:`BatteryState` instance from a CHARGER_INFO message.
 
@@ -111,8 +118,8 @@ class BatteryState:
         :class:`BatteryState`
         The new :class:`BatteryState` instance
         """
-        _, on_charger, charging, full = disassemble_charger_info(payload)
-        return cls(full, None, on_charger, charging)
+        on_track, on_charger, low, full = disassemble_charger_info(payload)
+        return VehicleState(full, low, on_charger, on_track)
 
 
 class Lights:
@@ -163,8 +170,6 @@ class Vehicle:
             device: BLEDevice,
             client: bleak.BleakClient|None=None,
             controller: Optional["Controller"]=None,  # Inconsistent, but fixes failing docs
-            *,
-            battery: BatteryState
     ):
         if client is None:
             self._client = bleak.BleakClient(device)
@@ -183,9 +188,9 @@ class Vehicle:
         self._track_piece_watchers: list[_Callback] = []
         self._pong_watchers: list[_Callback] = []
         self._delocal_watchers: list[_Callback] = []
-        self._battery_watchers: list[_Callback] = []
+        self._state_watchers: list[_Callback] = []
         self._controller = controller
-        self._battery: BatteryState = battery
+        self._state: VehicleState|None = None
         self._version_future: asyncio.Future[int] = asyncio.Future()
         self._track_piece_future: asyncio.Future = asyncio.Future()
         self._pong_future: asyncio.Future = asyncio.Future()
@@ -252,9 +257,9 @@ class Vehicle:
         elif msg_type == const.VehicleMsg.DELOCALIZED:
             _call_all_soon(self._delocal_watchers)
             pass
-        elif msg_type == const.VehicleMsg.CHARGER_INFO:
-            self._battery = BatteryState.from_charger_info(payload)
-            _call_all_soon(self._battery_watchers)
+        elif msg_type == const.VehicleMsg.STATUS_INFO:
+            self._state = VehicleState.from_charger_info(payload)
+            _call_all_soon(self._state_watchers)
             pass
         elif msg_type == const.VehicleMsg.VERSION_RESP:
             self._version_future.set_result(disassemble_version_resp(payload))
@@ -643,7 +648,7 @@ class Vehicle:
         self._delocal_watchers.remove(func)
         pass
 
-    def battery_change(self, func: _Callback):
+    def vehicle_state_watcher(self, func: _Callback):
         """
         Register a callback to execute on changes to the battery state.
         
@@ -657,13 +662,22 @@ class Vehicle:
         :class:`ValueError`
             The function passed is not an event handler
         """
-        self._battery_watchers.append(func)
-        # FIXME: Function returns None, should func
-        pass
+        self._state_watchers.append(func)
+        return func
 
-    def remove_battery_watcher(self, func: _Callback):
-        # TODO: Add code comments
-        self._battery_watchers.remove(func)
+    def remove_vehicle_state_watcher(self, func: _Callback):
+        """
+        Remove a vehicle state event handler that was added by :func:`Vehicle.delocalized`.
+
+        :param func: :class:`function`
+            The function to be removed
+
+        Raises
+        ------
+        :class:`ValueError`
+            The function passed is not an event handler
+        """
+        self._state_watchers.remove(func)
 
     async def get_version(self) -> int:
         """Get the vehicle firmware version"""
@@ -754,8 +768,16 @@ class Vehicle:
         return self._id
 
     @property
-    def battery_state(self) -> BatteryState:
+    def state(self) -> VehicleState:
         """
         The state of the supercar's battery
+
+        Raises
+        ------
+        :class:`RuntimeError`
+            No vehicle state has been received yet. 
+            This usually only happens if one tries to get the state immediately after connecting.
         """
-        return self._battery
+        if self._state is None:
+            raise RuntimeError("Tried to get vehicle state before it was received")
+        return self._state

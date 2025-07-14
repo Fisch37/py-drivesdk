@@ -58,7 +58,7 @@ class VehicleMsg:
     # Notify characteristic
     TRACK_PIECE_UPDATE = 0x27
     TRACK_PIECE_CHANGE = 0x29
-    CHARGER_INFO = 0x3f
+    STATUS_INFO = 0x3f
     DELOCALIZED = 0x2b
     pass
 
