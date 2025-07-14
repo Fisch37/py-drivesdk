@@ -289,7 +289,7 @@ class Vehicle:
             The new track piece. `None` if :func:`Vehicle.map` is None
             (for example if the map has not been scanned yet)
         """
-        await self._track_piece_future
+        await asyncio.shield(self._track_piece_future)
         # Wait on a new track piece (See _notify_handler)
         return self.current_track_piece
 
@@ -583,7 +583,7 @@ class Vehicle:
         """
         future = self._pong_future
         await self._send_package(ping_pkg())
-        await future
+        await asyncio.shield(future)
     
     def track_piece_change(self, func: _Callback):
         """
@@ -682,7 +682,7 @@ class Vehicle:
     async def get_version(self) -> int:
         """Get the vehicle firmware version"""
         await self._send_package(version_request_pkg())
-        return await self._version_future
+        return await asyncio.shield(self._version_future)
 
     @property
     def is_connected(self) -> bool:
