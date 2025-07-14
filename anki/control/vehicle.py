@@ -4,6 +4,7 @@ from enum import IntEnum
 from typing import Callable, Optional
 import bleak
 import asyncio
+import logging
 from bleak.backends.device import BLEDevice
 import dataclasses
 from bleak.exc import BleakDBusError, BleakError
@@ -189,6 +190,12 @@ class Vehicle:
         Returns True if the message was processed, or False if not.
         """
         msg_type, payload = msg_protocol.disassemble_packet(data)
+
+        if logging.getLogger().isEnabledFor(logging.DEBUG):
+            # This is quite expensive, which is why it only runs when necessary
+            packet_type = {getattr(const.VehicleMsg, key): key for key in dir(const.VehicleMsg)}.get(msg_type, "!UNKNOWN!")
+            logging.debug("Received msg of type %s: %s", packet_type, payload.hex(" "))
+
         if msg_type == const.VehicleMsg.TRACK_PIECE_UPDATE:
             # This gets called when part-way along a track piece (sometimes)
             loc, piece, offset, speed, clockwise = disassemble_track_update(payload)
@@ -247,6 +254,7 @@ class Vehicle:
             self._version_future.set_result(disassemble_version_resp(payload))
             self._version_future = asyncio.Future()
         else:
+            logging.info("message of type %x remained unhandled", msg_type)
             return False
         return True
 
