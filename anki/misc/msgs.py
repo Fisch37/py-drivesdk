@@ -1,6 +1,6 @@
 from anki.control.lights import BasePattern
 from .msg_protocol import assemble_packet
-from . import const
+from .const import ControllerMsg
 import struct
 from typing import Literal
 
@@ -10,7 +10,7 @@ def set_speed_pkg(speed: int, accel: int=500):
     accelBytes = accel.to_bytes(2, "little", signed=True)
 
     return assemble_packet(
-        const.ControllerMsg.SET_SPEED,
+        ControllerMsg.SET_SPEED,
         speedBytes + accelBytes
     )
     pass
@@ -21,7 +21,7 @@ def set_sdk_pkg(state: bool, flags: int=0):
     flag_bytes = flags.to_bytes(1, "little", signed=False)
 
     return assemble_packet(
-        const.ControllerMsg.SET_SDK,
+        ControllerMsg.SET_SDK,
         state_bytes + flag_bytes
     )
     pass
@@ -29,7 +29,7 @@ def set_sdk_pkg(state: bool, flags: int=0):
 
 def turn_180_pkg(type: int, trigger: int):
     return assemble_packet(
-        const.ControllerMsg.TURN_180,
+        ControllerMsg.TURN_180,
         type.to_bytes(1, "little", signed=False)
         + trigger.to_bytes(1, "little", signed=False)
     )
@@ -44,7 +44,7 @@ def change_lane_pkg(
         _tag: int=0x0
 ):
     return assemble_packet(
-        const.ControllerMsg.CHANGE_LANE,
+        ControllerMsg.CHANGE_LANE,
         struct.pack(
             "<HHfBB",
             horizontalSpeed,
@@ -60,7 +60,7 @@ def set_track_center_pkg(
         offset: float,
 ):
     return assemble_packet(
-        const.ControllerMsg.SET_TRACK_CENTER,
+        ControllerMsg.SET_TRACK_CENTER,
         struct.pack(
             "<f",
             offset
@@ -70,7 +70,7 @@ def set_track_center_pkg(
 
 def set_light_pkg(light: int):
     return assemble_packet(
-        const.ControllerMsg.SET_LIGHTS,
+        ControllerMsg.SET_LIGHTS,
         light.to_bytes(1, "little", signed=False)
     )
     pass
@@ -80,22 +80,22 @@ def set_light_pattern_pkg(patterns: list[BasePattern]):
     if len(patterns) > MAX_LIGHT_PATTERNS:
         raise ValueError(f"set_light_pattern can accept at most {MAX_LIGHT_PATTERNS} patterns, got {len(patterns)}")
     return assemble_packet(
-        const.ControllerMsg.LIGHT_PATTERN,
+        ControllerMsg.LIGHT_PATTERN,
         len(patterns).to_bytes(1) + b"".join(p.to_bytes() for p in patterns)
     )
     pass
 
 def ping_pkg():
     return assemble_packet(
-        const.ControllerMsg.PING,
+        ControllerMsg.PING,
         b""
     )
 
 def version_request_pkg():
-    return assemble_packet(const.ControllerMsg.VERSION_REQ, b"")
+    return assemble_packet(ControllerMsg.VERSION_REQ, b"")
 
 def stop_on_next_transition_pkg():
-    return assemble_packet(const.ControllerMsg.STOP_ON_NEXT_TRANSITION, b"")
+    return assemble_packet(ControllerMsg.STOP_ON_NEXT_TRANSITION, b"")
 
 
 def disassemble_track_update(
