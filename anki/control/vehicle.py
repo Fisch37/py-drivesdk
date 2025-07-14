@@ -426,9 +426,9 @@ class Vehicle:
         # (this is technically an overestimate, but the error is marginal)
         self._speed = speed
 
-    async def stop(self):
+    async def stop(self, acceleration: int = 600):
         """Stops the Supercar"""
-        await self.set_speed(0, 600)
+        await self.set_speed(0, acceleration)
     
     async def stop_on_next_transition(self):
         """Stops the supercar on the next track piece transition.
