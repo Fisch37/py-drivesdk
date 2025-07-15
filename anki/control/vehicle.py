@@ -590,6 +590,11 @@ class Vehicle:
         future = self._pong_future
         await self._send_package(ping_pkg())
         await asyncio.shield(future)
+
+    async def get_version(self) -> int:
+        """Get the vehicle firmware version"""
+        await self._send_package(version_request_pkg())
+        return await asyncio.shield(self._version_future)
     
     async def get_battery_voltage(self):
         # TODO: Find out what unit the voltage is. This is a LiPo battery so there isn't much to find out sadly.
@@ -691,11 +696,6 @@ class Vehicle:
             The function passed is not an event handler
         """
         self._state_watchers.remove(func)
-
-    async def get_version(self) -> int:
-        """Get the vehicle firmware version"""
-        await self._send_package(version_request_pkg())
-        return await asyncio.shield(self._version_future)
 
     @property
     def is_connected(self) -> bool:
